@@ -7,6 +7,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -21,8 +22,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -39,11 +42,20 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.google.gson.Gson
 import ph.edu.comteq.armamentothealpshotels.ui.theme.ArmamentoTheAlpsHotelsTheme
+
+private val PrimaryBlue = Color(0xFF1E3A8A)
+private val TextDark = Color(0xFF0F172A)
+private val TextMuted = Color(0xFF64748B)
+private val BackgroundColor = Color(0xFFF8FAFC)
+private val StarGold = Color(0xFFD97706)
+private val GoldBackground = Color(0xFFFEF3C7)
+private val ChipBackground = Color(0xFFF1F5F9)
 
 class MainActivity : ComponentActivity() {
 
@@ -53,12 +65,29 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             ArmamentoTheAlpsHotelsTheme {
-                Scaffold(
-                    modifier = Modifier.fillMaxSize()
-                ) { innerPadding ->
+                var selectedHotel by remember { mutableStateOf<Hotel?>(null) }
 
-                    Homepage(
-                        modifier = Modifier.padding(innerPadding)
+                val currentHotel = selectedHotel
+                if (currentHotel == null) {
+                    Scaffold(
+                        modifier = Modifier.fillMaxSize(),
+                        containerColor = BackgroundColor
+                    ) { innerPadding ->
+
+                        Homepage(
+                            modifier = Modifier.padding(innerPadding),
+                            onHotelClick = { hotel ->
+                                selectedHotel = hotel
+                            }
+                        )
+                    }
+                } else {
+                    BookingDetailsScreen(
+                        hotelId = currentHotel.hotel_id,
+                        hotelName = currentHotel.hotel_name,
+                        onBackClick = {
+                            selectedHotel = null
+                        }
                     )
                 }
             }
@@ -68,7 +97,8 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun Homepage(
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onHotelClick: (Hotel) -> Unit = {}
 ) {
 
     val context = LocalContext.current
@@ -79,6 +109,13 @@ fun Homepage(
         mutableStateOf(
             if (isInspectionMode) {
                 listOf(
+                    Hotel(
+                        hotel_id = 1000,
+                        hotel_name = "Résidence Pierre & Vacances Premium les Crets",
+                        hotel_rating = 8.3,
+                        hotel_to_ski_distance = 6.7,
+                        hotel_cover_image = "cover/1000.jpg"
+                    ),
                     Hotel(
                         hotel_id = 1001,
                         hotel_name = "Duplex - Plein sud - Pied des pistes - 50m2 - Mottaret",
@@ -106,6 +143,41 @@ fun Homepage(
                         hotel_rating = 7.9,
                         hotel_to_ski_distance = 3.8,
                         hotel_cover_image = "cover/1004.jpg"
+                    ),
+                    Hotel(
+                        hotel_id = 1005,
+                        hotel_name = "L'Hévana - maeva Home - Appartement",
+                        hotel_rating = 8.2,
+                        hotel_to_ski_distance = 3.8,
+                        hotel_cover_image = "cover/1005.jpg"
+                    ),
+                    Hotel(
+                        hotel_id = 1006,
+                        hotel_name = "La Belette - Duplex au charme savoyard avec vue sur la montagne",
+                        hotel_rating = 6.7,
+                        hotel_to_ski_distance = 1.8,
+                        hotel_cover_image = "cover/1006.jpg"
+                    ),
+                    Hotel(
+                        hotel_id = 1007,
+                        hotel_name = "Superbe Appartement au Plateau Rond",
+                        hotel_rating = 6.9,
+                        hotel_to_ski_distance = 3.7,
+                        hotel_cover_image = "cover/1007.jpg"
+                    ),
+                    Hotel(
+                        hotel_id = 1008,
+                        hotel_name = "Appartement Méribel",
+                        hotel_rating = 9.0,
+                        hotel_to_ski_distance = 6.5,
+                        hotel_cover_image = "cover/1008.jpg"
+                    ),
+                    Hotel(
+                        hotel_id = 1009,
+                        hotel_name = "L'Appart à Méribel",
+                        hotel_rating = 7.0,
+                        hotel_to_ski_distance = 6.2,
+                        hotel_cover_image = "cover/1009.jpg"
                     )
                 )
             } else {
@@ -121,20 +193,23 @@ fun Homepage(
 
     // Loads Hotel Data
     LaunchedEffect(Unit) {
+        try {
+            val json = context.assets
+                .open("cover/hotels.json")
+                .bufferedReader()
+                .use { it.readText() }
 
-        val json = context.assets
-            .open("hotels.json")
-            .bufferedReader()
-            .use { it.readText() }
+            val gson = Gson()
 
-        val gson = Gson()
+            val hotelsArray = gson.fromJson(
+                json,
+                Array<Hotel>::class.java
+            )
 
-        val hotelsArray = gson.fromJson(
-            json,
-            Array<Hotel>::class.java
-        )
-
-        hotels = hotelsArray.toList()
+            hotels = hotelsArray.toList()
+        } catch (_: Exception) {
+            // Fallback handled by default list
+        }
     }
 
     // Filters Hotel Results
@@ -149,7 +224,7 @@ fun Homepage(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(Color(0xFFF2F2F2))
+            .background(BackgroundColor)
             .padding(16.dp)
     ) {
 
@@ -162,7 +237,9 @@ fun Homepage(
             // Hotel Title
             Text(
                 text = "The Alps Hotels",
-                fontSize = 24.sp
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold,
+                color = PrimaryBlue
             )
 
             Spacer(
@@ -206,27 +283,29 @@ fun Homepage(
             modifier = Modifier.fillMaxWidth(),
             placeholder = {
                 Text(
-                    text = "Search hotels..."
+                    text = "Search hotels...",
+                    color = TextMuted
                 )
             },
-            shape = RoundedCornerShape(12.dp),
+            shape = RoundedCornerShape(16.dp),
             singleLine = true
         )
 
         Spacer(
-            modifier = Modifier.height(12.dp)
+            modifier = Modifier.height(16.dp)
         )
 
         // Hotel List
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
 
             items(filteredHotels) { hotel ->
 
                 HotelItem(
-                    hotel = hotel
+                    hotel = hotel,
+                    onClick = { onHotelClick(hotel) }
                 )
             }
         }
@@ -235,7 +314,8 @@ fun Homepage(
 
 @Composable
 fun HotelItem(
-    hotel: Hotel
+    hotel: Hotel,
+    onClick: () -> Unit = {}
 ) {
 
     val context = LocalContext.current
@@ -269,8 +349,12 @@ fun HotelItem(
 
     // Hotel Card
     Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp)
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
     ) {
 
         Row(
@@ -287,16 +371,16 @@ fun HotelItem(
                     bitmap = imageBitmap.asImageBitmap(),
                     contentDescription = hotel.hotel_name,
                     modifier = Modifier
-                        .size(120.dp)
+                        .size(110.dp)
                         .clip(
-                            RoundedCornerShape(10.dp)
+                            RoundedCornerShape(12.dp)
                         ),
                     contentScale = ContentScale.Crop
                 )
             }
 
             Spacer(
-                modifier = Modifier.width(12.dp)
+                modifier = Modifier.width(14.dp)
             )
 
             // Hotel Information
@@ -307,27 +391,55 @@ fun HotelItem(
                 // Hotel Name
                 Text(
                     text = hotel.hotel_name,
-                    fontSize = 18.sp
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TextDark
                 )
 
                 Spacer(
-                    modifier = Modifier.height(6.dp)
+                    modifier = Modifier.height(8.dp)
                 )
 
-                // Hotel Rating
-                Text(
-                    text = "Rating: ${hotel.hotel_rating}"
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // Rating Badge
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = GoldBackground
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            Text(
+                                text = "★ ",
+                                color = StarGold,
+                                fontSize = 12.sp
+                            )
+                            Text(
+                                text = "${hotel.hotel_rating}",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp,
+                                color = StarGold
+                            )
+                        }
+                    }
 
-                Spacer(
-                    modifier = Modifier.height(4.dp)
-                )
-
-                // Ski Distance
-                Text(
-                    text = "Ski distance: " +
-                            "${hotel.hotel_to_ski_distance} km"
-                )
+                    // Ski Distance Badge
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = ChipBackground
+                    ) {
+                        Text(
+                            text = "⛷ ${hotel.hotel_to_ski_distance} km",
+                            fontSize = 12.sp,
+                            color = TextMuted,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
+                    }
+                }
             }
         }
     }
@@ -343,5 +455,38 @@ fun GreetingPreview() {
 
     ArmamentoTheAlpsHotelsTheme {
         Homepage()
+    }
+}
+
+@Preview(
+    showBackground = true,
+    showSystemUi = true
+)
+@Composable
+fun BookingDetailsPreview() {
+
+    ArmamentoTheAlpsHotelsTheme {
+        BookingDetailsScreen(
+            hotelId = 1000,
+            hotelName = "Résidence Pierre & Vacances Premium les Crets",
+            onBackClick = {}
+        )
+    }
+}
+
+@Preview(
+    showBackground = true,
+    showSystemUi = true
+)
+@Composable
+fun RoomSelectionPreview() {
+
+    ArmamentoTheAlpsHotelsTheme {
+        BookingDetailsScreen(
+            hotelId = 1000,
+            hotelName = "Résidence Pierre & Vacances Premium les Crets",
+            onBackClick = {},
+            initialTabIndex = 1
+        )
     }
 }
